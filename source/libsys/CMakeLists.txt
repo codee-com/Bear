@@ -14,6 +14,7 @@ target_sources(sys_a
         )
 target_link_libraries(sys_a PUBLIC
         ${CMAKE_DL_LIBS}
+        stdc++fs
         result_a
         fmt::fmt
         spdlog::spdlog)
@@ -26,7 +27,7 @@ if (ENABLE_UNIT_TESTS)
             )
 
     target_include_directories(sys_unit_test PRIVATE source/)
-    target_link_libraries(sys_unit_test sys_a)
+    target_link_libraries(sys_unit_test sys_a stdc++fs)
     target_link_libraries(sys_unit_test PkgConfig::GTest ${CMAKE_THREAD_LIBS_INIT})
 
     add_test(NAME bear::sys_unit_test COMMAND $<TARGET_FILE:sys_unit_test>)
