@@ -21,6 +21,60 @@
 #include "citnames/citnames-forward.h"
 #include "intercept/intercept-forward.h"
 
+#include <set>
+
+static std::optional<std::filesystem::path> get_executable_in_path(std::string_view binary_name)
+{
+    std::string path = std::getenv("PATH"); // Get the PATH environment variable
+    std::string_view delimiter = ":";
+    size_t start = 0, end = 0;
+
+    while ((end = path.find(delimiter, start)) != std::string::npos) {
+        std::filesystem::path dir = path.substr(start, end - start); // Extract directory
+        std::filesystem::path binary = dir / binary_name; // Construct full path to binary
+
+        if (std::filesystem::exists(binary)) {
+            return binary;
+        }
+
+        start = end + delimiter.size();
+    }
+
+    return std::nullopt;
+}
+
+// Return the path to the main executable, using /proc/self/exe on linux or
+// otherwise falling back to the value of argv[0]
+static std::optional<std::string> get_main_executable(std::string_view argv0)
+{
+    std::error_code ec;
+#if defined(__linux__)
+    std::filesystem::path selfExePath = "/proc/self/exe";
+    if (std::filesystem::exists(selfExePath)) {
+        // Resolve the symbolic links to get our executable
+        std::filesystem::path resolvedExePath = std::filesystem::canonical(selfExePath, ec);
+        if (!ec) {
+            return resolvedExePath.string();
+        }
+    }
+#endif
+    // If the OS-specific detection fails or outside linux, use the path of argv0 itself
+
+    // If argv0 does not contain a path separator, it must have been searched in PATH. Otherwise, make the
+    // path canonical
+    if (argv0.find(std::filesystem::path::preferred_separator) == std::string_view::npos) {
+        if (std::optional<std::filesystem::path> result = get_executable_in_path(argv0)) {
+            return result->string();
+        }
+    } else {
+        std::filesystem::path resolvedArgv0Path = std::filesystem::canonical(argv0, ec);
+        if (!ec) {
+            return resolvedArgv0Path.string();
+        }
+    }
+    return std::nullopt;
+}
+
 namespace {
 
     constexpr std::optional<std::string_view> ADVANCED_GROUP = {"advanced options"};
@@ -143,15 +197,46 @@ namespace bear {
 			: ps::ApplicationFromArgs(ps::ApplicationLogConfig("bear", "br"))
 	{ }
 
+	// Since this "workaround" uses the default values of the options and those are
+	// string_views, we need them to refer to an alive string value
+	static std::set<std::string> StringStorage;
+
+	static const std::string &save_path_string(const std::filesystem::path &path) {
+		return *StringStorage.insert(path.string()).first;
+	}
+
 	rust::Result<flags::Arguments> Application::parse(int argc, const char **argv) const
         {
+            // To make the installation portable, search for the installation
+            // directory of the currently executing binary, so we can make all
+            // paths relative to it.
+            // By default have the installationDir empty, which is equivalent
+            // to it being CWD, since the binary and library directories are in
+            // relative form (./bin, ./lib). This is not very useful as bear
+            // will only work at the correct installation directory, but it
+            // should not happen very often because or other methods should
+            // work
+            std::filesystem::path installationDir;
+            // Try to get the full, canonical path to argv0, which should be the
+            // bear binary, and then get the installation directory by going up
+            // 2 levels
+            if (argc > 0 && argv[0]) {
+                if (std::optional<std::string> exePath = get_main_executable(argv[0])) {
+                    installationDir = *exePath;
+                    installationDir = installationDir.parent_path(); // Gets /bin prefix
+                    installationDir = installationDir.parent_path(); // Gets installation prefix
+                }
+            }
+            auto installationRelativePathString = [installationDir](const std::filesystem::path &path) -> const std::string & {
+                return save_path_string(installationDir / path);
+            };
                 const flags::Parser intercept_parser("intercept", cmd::VERSION, {
                         {cmd::intercept::FLAG_OUTPUT,        {1,  false, "path of the result file",        {cmd::intercept::DEFAULT_OUTPUT}, std::nullopt}},
                         {cmd::intercept::FLAG_FORCE_PRELOAD, {0,  false, "force to use library preload",   std::nullopt,                     DEVELOPER_GROUP}},
                         {cmd::intercept::FLAG_FORCE_WRAPPER, {0,  false, "force to use compiler wrappers", std::nullopt,                     DEVELOPER_GROUP}},
-                        {cmd::intercept::FLAG_LIBRARY,       {1,  false, "path to the preload library",    {cmd::library::DEFAULT_PATH},     DEVELOPER_GROUP}},
-                        {cmd::intercept::FLAG_WRAPPER,       {1,  false, "path to the wrapper executable", {cmd::wrapper::DEFAULT_PATH},     DEVELOPER_GROUP}},
-                        {cmd::intercept::FLAG_WRAPPER_DIR,   {1,  false, "path to the wrapper directory",  {cmd::wrapper::DEFAULT_DIR_PATH}, DEVELOPER_GROUP}},
+                        {cmd::intercept::FLAG_LIBRARY,       {1,  false, "path to the preload library",    {installationRelativePathString(cmd::library::DEFAULT_PATH)},     DEVELOPER_GROUP}},
+                        {cmd::intercept::FLAG_WRAPPER,       {1,  false, "path to the wrapper executable", {installationRelativePathString(cmd::wrapper::DEFAULT_PATH)},     DEVELOPER_GROUP}},
+                        {cmd::intercept::FLAG_WRAPPER_DIR,   {1,  false, "path to the wrapper directory",  {installationRelativePathString(cmd::wrapper::DEFAULT_DIR_PATH)}, DEVELOPER_GROUP}},
                         {cmd::intercept::FLAG_COMMAND,       {-1, true,  "command to execute",             std::nullopt,                     std::nullopt}}
                 });
 
@@ -169,10 +254,10 @@ namespace bear {
                         {cmd::citnames::FLAG_CONFIG,         {1,  false, "path of the config file",                  std::nullopt,                     ADVANCED_GROUP}},
                         {cmd::intercept::FLAG_FORCE_PRELOAD, {0,  false, "force to use library preload",             std::nullopt,                     ADVANCED_GROUP}},
                         {cmd::intercept::FLAG_FORCE_WRAPPER, {0,  false, "force to use compiler wrappers",           std::nullopt,                     ADVANCED_GROUP}},
-                        {cmd::bear::FLAG_BEAR,               {1,  false, "path to the bear executable",              {cmd::bear::DEFAULT_PATH},        DEVELOPER_GROUP}},
-                        {cmd::intercept::FLAG_LIBRARY,       {1,  false, "path to the preload library",              {cmd::library::DEFAULT_PATH},     DEVELOPER_GROUP}},
-                        {cmd::intercept::FLAG_WRAPPER,       {1,  false, "path to the wrapper executable",           {cmd::wrapper::DEFAULT_PATH},     DEVELOPER_GROUP}},
-                        {cmd::intercept::FLAG_WRAPPER_DIR,   {1,  false, "path to the wrapper directory",            {cmd::wrapper::DEFAULT_DIR_PATH}, DEVELOPER_GROUP}},
+                        {cmd::bear::FLAG_BEAR,               {1,  false, "path to the bear executable",              {installationRelativePathString(cmd::bear::DEFAULT_PATH)},        DEVELOPER_GROUP}},
+                        {cmd::intercept::FLAG_LIBRARY,       {1,  false, "path to the preload library",              {installationRelativePathString(cmd::library::DEFAULT_PATH)},     DEVELOPER_GROUP}},
+                        {cmd::intercept::FLAG_WRAPPER,       {1,  false, "path to the wrapper executable",           {installationRelativePathString(cmd::wrapper::DEFAULT_PATH)},     DEVELOPER_GROUP}},
+                        {cmd::intercept::FLAG_WRAPPER_DIR,   {1,  false, "path to the wrapper directory",            {installationRelativePathString(cmd::wrapper::DEFAULT_DIR_PATH)}, DEVELOPER_GROUP}},
                         {cmd::intercept::FLAG_COMMAND,       {-1, true,  "command to execute",                       std::nullopt,                     std::nullopt}}
 		});
 		return parser.parse_or_exit(argc, const_cast<const char **>(argv));
