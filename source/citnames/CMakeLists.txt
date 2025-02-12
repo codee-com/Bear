@@ -29,6 +29,7 @@ target_sources(citnames_a
             source/semantic/ToolAny.cc
             source/semantic/ToolClang.cc
             source/semantic/ToolCuda.cc
+            source/semantic/ToolCray.cc
             source/semantic/ToolGcc.cc
             source/semantic/ToolIntelFortran.cc
             source/semantic/ToolWrapper.cc
@@ -67,6 +68,7 @@ if (ENABLE_UNIT_TESTS)
             test/OutputTest.cc
             test/ParserTest.cc
             test/ToolClangTest.cc
+            test/ToolCrayTest.cc
             test/ToolGccTest.cc
             test/ToolIntelFortranTest.cc
             test/ToolWrapperTest.cc
