@@ -19,6 +19,7 @@
 
 #include "gtest/gtest.h"
 
+#include "semantic/Common.h"
 #include "semantic/Tool.h"
 #include "semantic/ToolGcc.h"
 
@@ -31,6 +32,11 @@ namespace {
             using ToolGcc::is_compiler_call;
         };
         Expose sut;
+
+        const char* originalValue = nullptr;
+        if ((originalValue = std::getenv(CC_IS_CRAY_ENV_VAR.data()))) {
+            unsetenv(CC_IS_CRAY_ENV_VAR.data());
+        }
 
         EXPECT_TRUE(sut.is_compiler_call("cc"));
         EXPECT_TRUE(sut.is_compiler_call("/usr/bin/cc"));
@@ -46,6 +52,18 @@ namespace {
         EXPECT_TRUE(sut.is_compiler_call("/usr/bin/gcc-6"));
         EXPECT_TRUE(sut.is_compiler_call("gfortran"));
         EXPECT_TRUE(sut.is_compiler_call("fortran"));
+
+        setenv(CC_IS_CRAY_ENV_VAR.data(), "1", /*replace=*/1);
+        EXPECT_FALSE(sut.is_compiler_call("cc"));
+        EXPECT_FALSE(sut.is_compiler_call("/usr/bin/cc"));
+        EXPECT_FALSE(sut.is_compiler_call("CC"));
+        EXPECT_FALSE(sut.is_compiler_call("/usr/bin/CC"));
+
+        if (originalValue) {
+            setenv(CC_IS_CRAY_ENV_VAR.data(), originalValue, /*replace=*/1);
+        } else {
+            unsetenv(CC_IS_CRAY_ENV_VAR.data());
+        }
     }
 
     TEST(ToolGcc, fails_on_empty) {
