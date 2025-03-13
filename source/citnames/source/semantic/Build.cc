@@ -21,7 +21,6 @@
 #include "ToolAny.h"
 #include "ToolGcc.h"
 #include "ToolClang.h"
-#include "ToolCray.h"
 #include "ToolCuda.h"
 #include "ToolIntelFortran.h"
 #include "ToolWrapper.h"
@@ -44,7 +43,6 @@ namespace {
         cs::semantic::ToolAny::ToolPtrs tools = {
                 std::make_shared<cs::semantic::ToolGcc>(),
                 std::make_shared<cs::semantic::ToolClang>(),
-                std::make_shared<cs::semantic::ToolCray>(),
                 std::make_shared<cs::semantic::ToolWrapper>(),
                 std::make_shared<cs::semantic::ToolCuda>(),
                 std::make_shared<cs::semantic::ToolIntelFortran>(),

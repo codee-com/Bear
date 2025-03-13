@@ -101,11 +101,7 @@ install(CODE "
     execute_process(
         COMMAND ln -sf ../wrapper ar
         COMMAND ln -sf ../wrapper as
-        COMMAND ln -sf ../wrapper CC
         COMMAND ln -sf ../wrapper cc
-        COMMAND ln -sf ../wrapper crayCC
-        COMMAND ln -sf ../wrapper craycc
-        COMMAND ln -sf ../wrapper crayftn
         COMMAND ln -sf ../wrapper c++
         COMMAND ln -sf ../wrapper cpp
         COMMAND ln -sf ../wrapper gcc
@@ -113,7 +109,6 @@ install(CODE "
         COMMAND ln -sf ../wrapper clang
         COMMAND ln -sf ../wrapper clang++
         COMMAND ln -sf ../wrapper f77
-        COMMAND ln -sf ../wrapper ftn
         COMMAND ln -sf ../wrapper gfortran
         COMMAND ln -sf ../wrapper ifx
         COMMAND ln -sf ../wrapper ifort

@@ -25,12 +25,6 @@
 #include "libresult/Result.h"
 
 namespace cs::semantic {
-    // Both 'cc' and 'CC' are ambiguous compiler binaries since on system's with
-    // using the Cray compiler suite, they do not point to GCC.
-    // To deal with that edge case, one can set this environment variable to
-    // avoid recognizing cc and CC as gcc and g++ respectively.
-    static constexpr std::string_view CC_IS_CRAY_ENV_VAR = "BEAR_CC_IS_CRAY";
-
     rust::Result<SemanticPtr> compilation_impl(const FlagsByName& flags, const Execution& execution,
         std::function<Arguments(const Execution&)> create_argument_list_func,
         std::function<bool(const CompilerFlags&)> is_preprocessor_func);

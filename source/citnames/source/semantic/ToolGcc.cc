@@ -23,7 +23,6 @@
 
 #include "libsys/Path.h"
 
-#include <cstdlib>
 #include <regex>
 #include <utility>
 #include <functional>
@@ -199,8 +198,7 @@ namespace cs::semantic {
     }
 
     bool ToolGcc::is_compiler_call(const fs::path& program) const {
-        // If cc/CC is NOT cray, include them in the pattern
-        static const auto patternCCIsNotCray = std::regex(
+        static const auto pattern = std::regex(
                 // - cc
                 // - c++
                 // - cxx
@@ -210,18 +208,9 @@ namespace cs::semantic {
                 //   - with postfixes like: -7.0 or 6.4.0
             R"(^(cc|c\+\+|cxx|CC|(([^-]*-)*([mg](cc|\+\+)|[g]?fortran)(-?\d+(\.\d+){0,2})?))$)"
         );
-        // If cc/CC IS cray, do NOT include them in the pattern
-        static const auto patternCCIsCray = std::regex(
-            // - c++
-            // - cxx
-            // - mcc, gcc, m++, g++, gfortran, fortran
-            //   - with prefixes like: arm-none-eabi-
-            //   - with postfixes like: -7.0 or 6.4.0
-            R"(^(c\+\+|cxx|(([^-]*-)*([mg](cc|\+\+)|[g]?fortran)(-?\d+(\.\d+){0,2})?))$)"
-        );
 
         std::cmatch m;
-        return std::regex_match(program.filename().c_str(), m, std::getenv(CC_IS_CRAY_ENV_VAR.data()) ? patternCCIsCray : patternCCIsNotCray);
+        return std::regex_match(program.filename().c_str(), m, pattern);
     }
 
     rust::Result<SemanticPtr> ToolGcc::compilation(const Execution &execution) const {
