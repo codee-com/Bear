@@ -358,6 +358,9 @@ namespace flags {
 
     void Parser::print_version(std::ostream& os) const
     {
+        if (!std::string_view { cmd::codee::VERSION }.empty()) {
+            os << name_ << " bundled in Codee " << cmd::codee::VERSION << ", based on ";
+        }
         os << name_ << " " << version_ << std::endl;
     }
 }
